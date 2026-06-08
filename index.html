@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 朗读助手 - 真实评分版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 420px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 32px 24px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .recording-section {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .record-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .record-button:active {
+            transform: scale(0.95);
+        }
+
+        .record-button.recording {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 1.5s infinite;
+        }
+
+        .record-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 8px 24px rgba(245, 87, 108, 0.4); }
+            50% { box-shadow: 0 8px 40px rgba(245, 87, 108, 0.6); }
+        }
+
+        .record-icon {
+            font-size: 36px;
+            margin-bottom: 4px;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .status-text.error {
+            color: #f5576c;
+        }
+
+        .timer {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            margin: 16px 0;
+        }
+
+        .waveform {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            height: 60px;
+            margin: 16px 0;
+        }
+
+        .wave-bar {
+            width: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(1) { animation-delay: 0s; }
+        .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes wave {
+            0%, 100% { height: 20px; }
+            50% { height: 60px; }
+        }
+
+        .score-section {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .score-section.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 24px;
+            color: white;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .score-number {
+            font-size: 64px;
+            font-weight: 700;
+            margin: 16px 0;
+        }
+
+        .score-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .score-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .detail-item {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 16px 8px;
+            text-align: center;
+        }
+
+        .detail-score {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .feedback {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .feedback h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .feedback p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .recognized-text {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #444;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .recognized-text strong {
+            color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .text-section {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .text-section h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .reading-text {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #444;
+            margin-bottom: 12px;
+        }
+
+        .text-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #856404;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ AI 朗读助手</h1>
+            <p>真实语音识别 · 智能评分</p>
+        </div>
+
+        <div class="content">
+            <!-- 浏览器兼容性提示 -->
+            <div class="warning-box hidden" id="browserWarning">
+                ⚠️ 您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 浏览器
+            </div>
+
+            <div class="info-box hidden" id="recognitionStatus">
+                ℹ️ 语音识别已准备就绪
+            </div>
+
+            <!-- 朗读文本区域 -->
+            <div class="text-section">
+                <h3>📖 朗读文本</h3>
+                <textarea class="text-input" id="readingText" placeholder="请输入或粘贴要朗读的文本...">春晓
+孟浩然
+春眠不觉晓，处处闻啼鸟。
+夜来风雨声，花落知多少。
+
+这是一首描绘春天早晨景象的诗，表达了诗人对春天的喜爱和对时光流逝的感慨。朗读时要注意语调的轻重缓急，体现出诗中的意境。</textarea>
+            </div>
+
+            <!-- 录音区域 -->
+            <div class="recording-section">
+                <button class="record-button" id="recordButton">
+                    <span class="record-icon">🎤</span>
+                    <span>开始录音</span>
+                </button>
+                <p class="status-text" id="statusText">点击按钮开始朗读</p>
+                <div class="timer hidden" id="timer">00:00</div>
+                <div class="waveform hidden" id="waveform">
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                    <div class="wave-bar"></div>
+                </div>
+            </div>
+
+            <!-- 评分结果 -->
+            <div class="score-section" id="scoreSection">
+                <div class="score-card">
+                    <div class="score-label">综合评分</div>
+                    <div class="score-number" id="totalScore">85</div>
+                    <div class="score-label">分</div>
+                </div>
+
+                <div class="score-details">
+                    <div class="detail-item">
+                        <div class="detail-score" id="pronunciationScore">88</div>
+                        <div class="detail-label">准确度</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-score" id="intonationScore">82</div>
+                        <div class="detail-label">完整度</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-score" id="fluencyScore">85</div>
+                        <div class="detail-label">流畅度</div>
+                    </div>
+                </div>
+
+                <div class="feedback">
+                    <h3>💡 AI 评语</h3>
+                    <p id="feedbackText">正在分析...</p>
+                    
+                    <div class="recognized-text">
+                        <strong>识别结果：</strong>
+                        <div id="recognizedTextDisplay">等待识别...</div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" id="retryButton">重新录制</button>
+                    <button class="btn btn-primary" id="newTextButton">新的文本</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let timerInterval = null;
+        let seconds = 0;
+        let recognition = null;
+        let recognizedText = '';
+
+        const recordButton = document.getElementById('recordButton');
+        const statusText = document.getElementById('statusText');
+        const timer = document.getElementById('timer');
+        const waveform = document.getElementById('waveform');
+        const scoreSection = document.getElementById('scoreSection');
+        const readingText = document.getElementById('readingText');
+        const browserWarning = document.getElementById('browserWarning');
+        const recognitionStatus = document.getElementById('recognitionStatus');
+
+        // 检查浏览器是否支持语音识别
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            browserWarning.classList.remove('hidden');
+            recordButton.disabled = true;
+        } else {
+            recognitionStatus.classList.remove('hidden');
+        }
+
+        // 初始化语音识别
+        function initRecognition() {
+            if (!SpeechRecognition) return null;
+
+            const rec = new SpeechRecognition();
+            rec.lang = 'zh-CN';
+            rec.continuous = true;
+            rec.interimResults = false;
+            rec.maxAlternatives = 1;
+
+            rec.onstart = () => {
+                console.log('语音识别开始');
+                recognizedText = '';
+            };
+
+            rec.onresult = (event) => {
+                let finalText = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalText += event.results[i][0].transcript;
+                    }
+                }
+                recognizedText = finalText;
+                console.log('识别结果:', recognizedText);
+            };
+
+            rec.onerror = (event) => {
+                console.error('语音识别错误:', event.error);
+                if (event.error === 'not-allowed') {
+                    statusText.textContent = '请允许麦克风权限';
+                    statusText.classList.add('error');
+                }
+            };
+
+            rec.onend = () => {
+                console.log('语音识别结束');
+            };
+
+            return rec;
+        }
+
+        // 开始/停止录音
+        recordButton.addEventListener('click', async () => {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        });
+
+        // 开始录音
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    console.log('录音完成', audioBlob);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                
+                recordButton.classList.add('recording');
+                recordButton.innerHTML = '<span class="record-icon">⏹️</span><span>停止录音</span>';
+                statusText.textContent = '正在录音中...';
+                statusText.classList.remove('error');
+                timer.classList.remove('hidden');
+                waveform.classList.remove('hidden');
+                scoreSection.classList.remove('show');
+                
+                startTimer();
+                startRecognition();
+            } catch (error) {
+                alert('无法访问麦克风，请检查权限设置');
+                console.error('录音错误:', error);
+            }
+        }
+
+        // 开始语音识别
+        function startRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+
+            recognition = initRecognition();
+            if (recognition) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('启动识别失败:', e);
+                }
+            }
+        }
+
+        // 停止录音
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                isRecording = false;
+                
+                recordButton.classList.remove('recording');
+                recordButton.innerHTML = '<span class="record-icon">🎤</span><span>开始录音</span>';
+                statusText.textContent = '录音完成，正在分析...';
+                waveform.classList.add('hidden');
+                
+                stopTimer();
+                stopRecognition();
+            }
+        }
+
+        // 停止语音识别
+        function stopRecognition() {
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (e) {
+                    console.error('停止识别失败:', e);
+                }
+            }
+            
+            // 延迟分析，确保识别完成
+            setTimeout(() => {
+                analyzeReading();
+            }, 500);
+        }
+
+        // 计时器
+        function startTimer() {
+            seconds = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                seconds++;
+                updateTimerDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            timer.textContent = `${mins}:${secs}`;
+        }
+
+        // 计算文本相似度（Levenshtein Distance）
+        function calculateSimilarity(text1, text2) {
+            if (!text1 || !text2) return 0;
+            
+            // 清理文本：去除标点、转小写、去除空格
+            const clean1 = text1.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '').toLowerCase();
+            const clean2 = text2.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '').toLowerCase();
+            
+            if (clean1.length === 0 || clean2.length === 0) return 0;
+            
+            // 计算编辑距离
+            const len1 = clean1.length;
+            const len2 = clean2.length;
+            const matrix = [];
+            
+            for (let i = 0; i <= len1; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= len2; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= len1; i++) {
+                for (let j = 1; j <= len2; j++) {
+                    const cost = clean1[i - 1] === clean2[j - 1] ? 0 : 1;
+                    matrix[i][j] = Math.min(
+                        matrix[i - 1][j] + 1,      // 删除
+                        matrix[i][j - 1] + 1,      // 插入
+                        matrix[i - 1][j - 1] + cost // 替换
+                    );
+                }
+            }
+            
+            const distance = matrix[len1][len2];
+            const maxLen = Math.max(len1, len2);
+            const similarity = (1 - distance / maxLen) * 100;
+            
+            return Math.max(0, Math.min(100, similarity));
+        }
+
+        // 分析朗读
+        function analyzeReading() {
+            statusText.textContent = 'AI 正在分析中...';
+            
+            const originalText = readingText.value.trim();
+            
+            // 显示识别结果
+            const displayText = recognizedText || '（未能识别到内容，请检查麦克风或重试）';
+            document.getElementById('recognizedTextDisplay').textContent = displayText;
+            
+            // 计算准确度（文本相似度）
+            const pronunciationScore = Math.floor(calculateSimilarity(originalText, recognizedText));
+            
+            // 计算完整度（识别出的文字占原文的比例）
+            const originalLength = originalText.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '').length;
+            const recognizedLength = recognizedText.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '').length;
+            const completenessScore = originalLength > 0 
+                ? Math.min(100, Math.floor((recognizedLength / originalLength) * 100))
+                : 0;
+            
+            // 计算流畅度（基于录音时长和文本长度）
+            const expectedDuration = originalText.length * 0.3; // 假设每个字0.3秒
+            const fluencyScore = expectedDuration > 0
+                ? Math.min(100, Math.floor((expectedDuration / seconds) * 100))
+                : 50;
+            
+            // 综合评分（加权平均）
+            const totalScore = Math.floor(
+                pronunciationScore * 0.5 +
+                completenessScore * 0.3 +
+                fluencyScore * 0.2
+            );
+            
+            // 更新分数显示
+            document.getElementById('totalScore').textContent = totalScore;
+            document.getElementById('pronunciationScore').textContent = pronunciationScore;
+            document.getElementById('intonationScore').textContent = completenessScore;
+            document.getElementById('fluencyScore').textContent = fluencyScore;
+            
+            // 生成评语
+            const feedback = generateFeedback(totalScore, pronunciationScore, completenessScore, fluencyScore);
+            document.getElementById('feedbackText').textContent = feedback;
+            
+            // 显示评分结果
+            statusText.textContent = '分析完成！';
+            scoreSection.classList.add('show');
+        }
+
+        // 生成 AI 评语
+        function generateFeedback(total, pron, comp, flu) {
+            let feedback = '';
+            
+            if (pron < 50) {
+                feedback += '⚠️ 识别准确度较低，可能原因：\n';
+                feedback += '1. 发音不够清晰\n';
+                feedback += '2. 环境噪音较大\n';
+                feedback += '3. 与原文差异较大\n\n';
+                feedback += '建议：请在安静环境下，放慢语速，清晰发音后重试。';
+            } else if (pron < 70) {
+                feedback += '📢 准确度一般，还有提升空间。\n';
+                if (comp < 60) {
+                    feedback += '建议：确保读完所有内容，不要遗漏段落。\n';
+                }
+                if (flu < 60) {
+                    feedback += '建议：保持适当的朗读节奏，不要过快或过慢。\n';
+                }
+                feedback += '\n可以多听标准朗读音频，模仿发音和节奏。';
+            } else if (pron < 85) {
+                feedback += '👍 准确度不错！大部分内容识别正确。\n';
+                feedback += '改进建议：';
+                if (comp < 80) {
+                    feedback += '注意完整读完每个字词；';
+                }
+                if (flu < 80) {
+                    feedback += '保持流畅的语速；';
+                }
+                feedback += '继续加油！';
+            } else {
+                feedback += '🌟 非常棒！识别准确度很高，朗读质量优秀！\n';
+                feedback += '您准确地读出了大部分内容，发音清晰。';
+                if (comp >= 90 && flu >= 90) {
+                    feedback += ' 完整度和流畅度都非常好！';
+                }
+                feedback += ' 请继续保持！';
+            }
+            
+            // 添加识别结果提示
+            if (!recognizedText || recognizedText.length < 10) {
+                feedback += '\n\n💡 提示：未能识别到足够的语音内容，请确保：\n';
+                feedback += '1. 已允许麦克风权限\n';
+                feedback += '2. 朗读时距离麦克风适中\n';
+                feedback += '3. 环境相对安静\n';
+                feedback += '4. 使用 Chrome 或 Edge 浏览器';
+            }
+            
+            return feedback;
+        }
+
+        // 重新录制
+        document.getElementById('retryButton').addEventListener('click', () => {
+            scoreSection.classList.remove('show');
+            statusText.textContent = '点击按钮开始朗读';
+            statusText.classList.remove('error');
+            timer.classList.add('hidden');
+            timer.textContent = '00:00';
+            recognizedText = '';
+        });
+
+        // 新的文本
+        document.getElementById('newTextButton').addEventListener('click', () => {
+            scoreSection.classList.remove('show');
+            statusText.textContent = '点击按钮开始朗读';
+            statusText.classList.remove('error');
+            timer.classList.add('hidden');
+            timer.textContent = '00:00';
+            readingText.value = '';
+            readingText.focus();
+            recognizedText = '';
+        });
+
+        // 防止移动端缩放
+        document.addEventListener('touchmove', (e) => {
+            if (e.scale !== 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
